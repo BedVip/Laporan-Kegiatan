@@ -1,0 +1,2524 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WorkPulse — Dashboard Laporan Kerja</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+    <style>
+      :root {
+        --primary: #0f172a;
+        --surface: #1e293b;
+        --surface2: #273549;
+        --accent: #38bdf8;
+        --accent2: #818cf8;
+        --accent3: #34d399;
+        --danger: #f87171;
+        --warn: #fbbf24;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --border: #334155;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        background: var(--primary);
+        color: var(--text);
+        margin: 0;
+        overflow-x: hidden;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--primary);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      /* Sidebar */
+      #sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100vh;
+        width: 260px;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        z-index: 100;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+      }
+      #sidebar.hidden-mobile {
+        transform: translateX(-100%);
+      }
+      .logo-area {
+        padding: 24px 20px 20px;
+        border-bottom: 1px solid var(--border);
+      }
+      .logo-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: linear-gradient(135deg, #0ea5e9, #818cf8);
+        padding: 8px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 15px;
+        letter-spacing: -0.5px;
+      }
+      .logo-sub {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 6px;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+      nav {
+        flex: 1;
+        padding: 16px 12px;
+        overflow-y: auto;
+      }
+      .nav-section-title {
+        font-size: 10px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: var(--muted);
+        padding: 8px 10px 4px;
+      }
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--muted);
+        transition: all 0.15s;
+        margin-bottom: 2px;
+        user-select: none;
+      }
+      .nav-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: linear-gradient(
+          135deg,
+          rgba(56, 189, 248, 0.15),
+          rgba(129, 140, 248, 0.15)
+        );
+        color: var(--accent);
+        border: 1px solid rgba(56, 189, 248, 0.2);
+      }
+      .nav-item .icon {
+        width: 18px;
+        text-align: center;
+        font-size: 14px;
+      }
+      .nav-badge {
+        margin-left: auto;
+        background: var(--accent);
+        color: #0f172a;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 20px;
+      }
+
+      /* Main */
+      #main {
+        margin-left: 260px;
+        min-height: 100vh;
+        transition: margin 0.3s;
+      }
+      @media (max-width: 768px) {
+        #main {
+          margin-left: 0;
+        }
+        #sidebar {
+          transform: translateX(-100%);
+        }
+        #sidebar.open {
+          transform: translateX(0);
+        }
+      }
+
+      /* Topbar */
+      #topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border);
+        padding: 0 24px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .search-box {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px 14px;
+        flex: 1;
+        max-width: 380px;
+      }
+      .search-box input {
+        background: none;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-size: 13.5px;
+        width: 100%;
+        font-family: inherit;
+      }
+      .search-box input::placeholder {
+        color: var(--muted);
+      }
+      .topbar-right {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .btn-icon {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        color: var(--muted);
+        transition: all 0.15s;
+      }
+      .btn-icon:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .avatar {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #0ea5e9, #818cf8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      /* Content pages */
+      .page {
+        display: none;
+        padding: 28px 24px;
+      }
+      .page.active {
+        display: block;
+      }
+
+      /* Stats cards */
+      .stat-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+        transition:
+          transform 0.2s,
+          border-color 0.2s;
+      }
+      .stat-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(56, 189, 248, 0.3);
+      }
+      .stat-card::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 80px;
+        height: 80px;
+        border-radius: 0 0 0 80px;
+        opacity: 0.1;
+      }
+      .stat-card.blue::before {
+        background: #38bdf8;
+      }
+      .stat-card.purple::before {
+        background: #818cf8;
+      }
+      .stat-card.green::before {
+        background: #34d399;
+      }
+      .stat-card.orange::before {
+        background: #fbbf24;
+      }
+      .stat-num {
+        font-size: 32px;
+        font-weight: 800;
+        line-height: 1;
+        margin: 8px 0 4px;
+        font-family: "JetBrains Mono", monospace;
+      }
+      .stat-label {
+        font-size: 12px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+      }
+      .stat-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+      }
+      .stat-change {
+        font-size: 12px;
+        color: var(--accent3);
+        margin-top: 6px;
+      }
+
+      /* Chart card */
+      .chart-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 22px;
+      }
+      .chart-title {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .chart-sub {
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 20px;
+      }
+
+      /* Table */
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .data-table th {
+        background: var(--surface2);
+        padding: 11px 14px;
+        text-align: left;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .data-table th:first-child {
+        border-radius: 8px 0 0 8px;
+      }
+      .data-table th:last-child {
+        border-radius: 0 8px 8px 0;
+      }
+      .data-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+      }
+      .data-table tr:hover td {
+        background: rgba(30, 41, 59, 0.5);
+      }
+      .data-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* Status badges */
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 3px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .badge.selesai {
+        background: rgba(52, 211, 153, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.3);
+      }
+      .badge.proses {
+        background: rgba(56, 189, 248, 0.15);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.3);
+      }
+      .badge.pending {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+      }
+
+      /* Form */
+      .form-group {
+        margin-bottom: 18px;
+      }
+      .form-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        margin-bottom: 7px;
+      }
+      .form-control {
+        width: 100%;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        color: var(--text);
+        font-size: 13.5px;
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .form-control:focus {
+        border-color: var(--accent);
+      }
+      textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+      }
+      select.form-control {
+        cursor: pointer;
+      }
+
+      /* Buttons */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 13.5px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        font-family: inherit;
+        transition: all 0.15s;
+        white-space: nowrap;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #0ea5e9, #818cf8);
+        color: white;
+      }
+      .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+      }
+      .btn-success {
+        background: rgba(52, 211, 153, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.3);
+      }
+      .btn-success:hover {
+        background: rgba(52, 211, 153, 0.25);
+      }
+      .btn-danger {
+        background: rgba(248, 113, 113, 0.15);
+        color: #f87171;
+        border: 1px solid rgba(248, 113, 113, 0.3);
+      }
+      .btn-danger:hover {
+        background: rgba(248, 113, 113, 0.25);
+      }
+      .btn-outline {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--border);
+      }
+      .btn-outline:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      .btn-warning {
+        background: rgba(251, 191, 36, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(251, 191, 36, 0.3);
+      }
+      .btn-warning:hover {
+        background: rgba(251, 191, 36, 0.25);
+      }
+
+      /* Section header */
+      .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .section-title {
+        font-size: 18px;
+        font-weight: 800;
+      }
+      .section-sub {
+        font-size: 13px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+
+      /* Page header */
+      .page-header {
+        margin-bottom: 28px;
+      }
+      .page-header h1 {
+        font-size: 24px;
+        font-weight: 800;
+        margin: 0;
+      }
+      .page-header p {
+        color: var(--muted);
+        font-size: 13.5px;
+        margin: 4px 0 0;
+      }
+      .breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .breadcrumb .sep {
+        opacity: 0.4;
+      }
+
+      /* Resume card */
+      .resume-card {
+        background: var(--surface2);
+        border-radius: 12px;
+        padding: 18px;
+        border: 1px solid var(--border);
+      }
+      .resume-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+        font-size: 13.5px;
+      }
+      .resume-item:last-child {
+        border-bottom: none;
+      }
+
+      /* Mobile menu toggle */
+      #menuToggle {
+        display: none;
+      }
+      @media (max-width: 768px) {
+        #menuToggle {
+          display: flex;
+        }
+      }
+
+      /* Overlay */
+      #overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+      }
+      #overlay.active {
+        display: block;
+      }
+
+      /* Dot indicators */
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .dot.green {
+        background: #34d399;
+      }
+      .dot.blue {
+        background: #38bdf8;
+      }
+      .dot.yellow {
+        background: #fbbf24;
+      }
+
+      /* Filter bar */
+      .filter-bar {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      /* Modal */
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 200;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+      .modal-overlay.active {
+        display: flex;
+      }
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+      .modal-header {
+        padding: 22px 24px 18px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .modal-body {
+        padding: 24px;
+      }
+      .modal-footer {
+        padding: 18px 24px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      /* Progress bar */
+      .progress-bar {
+        height: 6px;
+        background: var(--surface2);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.5s;
+      }
+
+      /* Glow effect on active nav */
+      .nav-item.active .icon {
+        color: var(--accent);
+      }
+
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 48px 24px;
+        color: var(--muted);
+      }
+      .empty-state i {
+        font-size: 40px;
+        margin-bottom: 12px;
+        opacity: 0.4;
+      }
+      .empty-state p {
+        font-size: 14px;
+      }
+
+      /* Toast */
+      #toast-container {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .toast {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 18px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        animation: slideIn 0.3s ease;
+      }
+      .toast.success {
+        border-left: 3px solid #34d399;
+      }
+      .toast.error {
+        border-left: 3px solid #f87171;
+      }
+      .toast.info {
+        border-left: 3px solid #38bdf8;
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(100px);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .grid-4 {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 16px;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      @media (max-width: 1200px) {
+        .grid-4 {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 640px) {
+        .grid-4 {
+          grid-template-columns: 1fr;
+        }
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+        border-radius: 12px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar Overlay (mobile) -->
+    <div id="overlay" onclick="closeSidebar()"></div>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+      <div class="logo-area">
+        <div class="logo-badge"><i class="fa-solid fa-bolt"></i> WorkPulse</div>
+        <div class="logo-sub">Dashboard Laporan Kerja</div>
+      </div>
+      <nav>
+        <div class="nav-section-title">Menu Utama</div>
+        <div class="nav-item active" onclick="navigate('dashboard')">
+          <span class="icon"><i class="fa-solid fa-house"></i></span>
+          Dashboard
+        </div>
+        <div class="nav-item" onclick="navigate('daily')">
+          <span class="icon"><i class="fa-solid fa-calendar-day"></i></span>
+          Laporan Harian
+          <span class="nav-badge" id="daily-badge">0</span>
+        </div>
+        <div class="nav-item" onclick="navigate('weekly')">
+          <span class="icon"><i class="fa-solid fa-calendar-week"></i></span>
+          Report Mingguan
+        </div>
+        <div class="nav-item" onclick="navigate('monthly')">
+          <span class="icon"><i class="fa-solid fa-calendar-alt"></i></span>
+          Report Bulanan
+        </div>
+        <div class="nav-section-title" style="margin-top: 12px">Utilitas</div>
+        <div class="nav-item" onclick="openExportModal()">
+          <span class="icon"><i class="fa-solid fa-file-export"></i></span>
+          Export Laporan
+        </div>
+        <div
+          class="nav-item"
+          onclick="
+            navigate('daily');
+            document.getElementById('addFormSection').scrollIntoView();
+          "
+        >
+          <span class="icon"><i class="fa-solid fa-plus"></i></span>
+          Tambah Laporan
+        </div>
+      </nav>
+      <div style="padding: 16px 20px; border-top: 1px solid var(--border)">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <div class="avatar">A</div>
+          <div>
+            <div style="font-size: 13px; font-weight: 700">Admin User</div>
+            <div style="font-size: 11px; color: var(--muted)">
+              Administrator
+            </div>
+          </div>
+          <div
+            class="dot green"
+            style="
+              margin-left: auto;
+              box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.2);
+            "
+          ></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div id="main">
+      <!-- Topbar -->
+      <header id="topbar">
+        <button class="btn-icon" id="menuToggle" onclick="toggleSidebar()">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="search-box">
+          <i
+            class="fa-solid fa-search"
+            style="color: var(--muted); font-size: 13px"
+          ></i>
+          <input
+            type="text"
+            placeholder="Cari laporan..."
+            id="globalSearch"
+            oninput="handleSearch()"
+          />
+        </div>
+        <div class="topbar-right">
+          <div class="chip" id="dateChip"></div>
+          <div class="btn-icon" title="Filter Tanggal">
+            <i class="fa-solid fa-filter"></i>
+          </div>
+          <div class="btn-icon" title="Notifikasi" style="position: relative">
+            <i class="fa-solid fa-bell"></i>
+            <span
+              style="
+                position: absolute;
+                top: 6px;
+                right: 6px;
+                width: 8px;
+                height: 8px;
+                background: #f87171;
+                border-radius: 50%;
+                border: 2px solid var(--primary);
+              "
+            ></span>
+          </div>
+          <div class="avatar">A</div>
+        </div>
+      </header>
+
+      <!-- DASHBOARD PAGE -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div class="breadcrumb">
+            <span>WorkPulse</span><span class="sep">/</span
+            ><span style="color: var(--text)">Dashboard</span>
+          </div>
+          <h1>Selamat Datang 👋</h1>
+          <p>Ringkasan aktivitas kerja Anda hari ini</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid-4" style="margin-bottom: 20px">
+          <div class="stat-card blue">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <div>
+                <div class="stat-label">Laporan Hari Ini</div>
+                <div class="stat-num" id="stat-today" style="color: #38bdf8">
+                  0
+                </div>
+              </div>
+              <div
+                class="stat-icon"
+                style="background: rgba(56, 189, 248, 0.15); color: #38bdf8"
+              >
+                <i class="fa-solid fa-file-lines"></i>
+              </div>
+            </div>
+            <div class="stat-change">
+              <i class="fa-solid fa-arrow-trend-up"></i> Laporan harian aktif
+            </div>
+          </div>
+          <div class="stat-card purple">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <div>
+                <div class="stat-label">Laporan Minggu Ini</div>
+                <div class="stat-num" id="stat-week" style="color: #818cf8">
+                  0
+                </div>
+              </div>
+              <div
+                class="stat-icon"
+                style="background: rgba(129, 140, 248, 0.15); color: #818cf8"
+              >
+                <i class="fa-solid fa-calendar-week"></i>
+              </div>
+            </div>
+            <div class="stat-change" style="color: #818cf8">
+              <i class="fa-solid fa-arrow-trend-up"></i> 7 hari terakhir
+            </div>
+          </div>
+          <div class="stat-card green">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <div>
+                <div class="stat-label">Laporan Bulan Ini</div>
+                <div class="stat-num" id="stat-month" style="color: #34d399">
+                  0
+                </div>
+              </div>
+              <div
+                class="stat-icon"
+                style="background: rgba(52, 211, 153, 0.15); color: #34d399"
+              >
+                <i class="fa-solid fa-calendar-alt"></i>
+              </div>
+            </div>
+            <div class="stat-change">
+              <i class="fa-solid fa-arrow-trend-up"></i> Bulan berjalan
+            </div>
+          </div>
+          <div class="stat-card orange">
+            <div
+              style="
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+              "
+            >
+              <div>
+                <div class="stat-label">Tugas Selesai</div>
+                <div class="stat-num" id="stat-done" style="color: #fbbf24">
+                  0
+                </div>
+              </div>
+              <div
+                class="stat-icon"
+                style="background: rgba(251, 191, 36, 0.15); color: #fbbf24"
+              >
+                <i class="fa-solid fa-circle-check"></i>
+              </div>
+            </div>
+            <div class="stat-change" style="color: #fbbf24">
+              <i class="fa-solid fa-star"></i> Total diselesaikan
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid-2" style="margin-bottom: 20px">
+          <div class="chart-card">
+            <div class="chart-title">Aktivitas Kerja Mingguan</div>
+            <div class="chart-sub">
+              Jumlah laporan per hari dalam 7 hari terakhir
+            </div>
+            <canvas id="weeklyChart" height="180"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Distribusi Status Pekerjaan</div>
+            <div class="chart-sub">Proporsi Selesai / Proses / Pending</div>
+            <canvas id="statusChart" height="180"></canvas>
+          </div>
+        </div>
+
+        <!-- Daily Summary + Recent -->
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="section-header">
+              <div>
+                <div class="chart-title">Resume Harian</div>
+                <div class="chart-sub">Ringkasan aktivitas hari ini</div>
+              </div>
+            </div>
+            <div id="dailySummary">
+              <div class="resume-card">
+                <div class="resume-item">
+                  <span
+                    ><i
+                      class="fa-solid fa-list-check"
+                      style="color: #38bdf8; margin-right: 8px"
+                    ></i
+                    >Total Pekerjaan Hari Ini</span
+                  >
+                  <span id="rs-total" style="font-weight: 700; color: #38bdf8"
+                    >0</span
+                  >
+                </div>
+                <div class="resume-item">
+                  <span
+                    ><i
+                      class="fa-solid fa-circle-check"
+                      style="color: #34d399; margin-right: 8px"
+                    ></i
+                    >Pekerjaan Selesai</span
+                  >
+                  <span id="rs-done" style="font-weight: 700; color: #34d399"
+                    >0</span
+                  >
+                </div>
+                <div class="resume-item">
+                  <span
+                    ><i
+                      class="fa-solid fa-spinner"
+                      style="color: #38bdf8; margin-right: 8px"
+                    ></i
+                    >Sedang Berjalan</span
+                  >
+                  <span id="rs-process" style="font-weight: 700; color: #38bdf8"
+                    >0</span
+                  >
+                </div>
+                <div class="resume-item">
+                  <span
+                    ><i
+                      class="fa-solid fa-clock"
+                      style="color: #fbbf24; margin-right: 8px"
+                    ></i
+                    >Pending</span
+                  >
+                  <span id="rs-pending" style="font-weight: 700; color: #fbbf24"
+                    >0</span
+                  >
+                </div>
+                <div class="resume-item" id="rs-kendala-wrap">
+                  <span
+                    ><i
+                      class="fa-solid fa-triangle-exclamation"
+                      style="color: #f87171; margin-right: 8px"
+                    ></i
+                    >Kendala Utama</span
+                  >
+                  <span
+                    id="rs-kendala"
+                    style="
+                      color: #f87171;
+                      font-size: 12px;
+                      max-width: 180px;
+                      text-align: right;
+                    "
+                    >-</span
+                  >
+                </div>
+              </div>
+              <div style="margin-top: 14px">
+                <div
+                  style="
+                    display: flex;
+                    justify-content: space-between;
+                    font-size: 12px;
+                    margin-bottom: 6px;
+                  "
+                >
+                  <span style="color: var(--muted)">Progress Harian</span>
+                  <span id="rs-pct" style="font-weight: 700">0%</span>
+                </div>
+                <div class="progress-bar">
+                  <div
+                    class="progress-fill"
+                    id="rs-bar"
+                    style="
+                      width: 0%;
+                      background: linear-gradient(90deg, #0ea5e9, #818cf8);
+                    "
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-card">
+            <div class="section-header">
+              <div>
+                <div class="chart-title">Laporan Terbaru</div>
+                <div class="chart-sub">5 laporan terakhir diinput</div>
+              </div>
+              <button
+                class="btn btn-outline"
+                style="font-size: 12px; padding: 6px 12px"
+                onclick="navigate('daily')"
+              >
+                Lihat Semua
+              </button>
+            </div>
+            <div id="recentReports">
+              <div class="empty-state">
+                <i class="fa-solid fa-inbox"></i>
+                <p>Belum ada laporan</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DAILY REPORT PAGE -->
+      <div class="page" id="page-daily">
+        <div class="page-header">
+          <div class="breadcrumb">
+            <span>WorkPulse</span><span class="sep">/</span
+            ><span style="color: var(--text)">Laporan Harian</span>
+          </div>
+          <h1>Laporan Harian</h1>
+          <p>Input dan kelola laporan kerja harian Anda</p>
+        </div>
+
+        <!-- Form -->
+        <div class="chart-card" style="margin-bottom: 20px" id="addFormSection">
+          <div class="section-header">
+            <div>
+              <div class="chart-title" id="formTitle">
+                ➕ Tambah Laporan Baru
+              </div>
+              <div class="chart-sub">Isi formulir laporan kerja harian</div>
+            </div>
+            <button
+              class="btn btn-outline"
+              id="cancelEditBtn"
+              onclick="cancelEdit()"
+              style="display: none"
+            >
+              <i class="fa-solid fa-xmark"></i> Batal Edit
+            </button>
+          </div>
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px"
+            class="form-grid"
+          >
+            <div class="form-group">
+              <label class="form-label">Nama</label>
+              <input
+                type="text"
+                class="form-control"
+                id="f-nama"
+                placeholder="Masukkan nama..."
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Tanggal</label>
+              <input type="date" class="form-control" id="f-tanggal" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Divisi / Bidang</label>
+              <input
+                type="text"
+                class="form-control"
+                id="f-divisi"
+                placeholder="Contoh: IT, HRD, Marketing..."
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status Pekerjaan</label>
+              <select class="form-control" id="f-status">
+                <option value="Selesai">✅ Selesai</option>
+                <option value="Proses">🔄 Proses</option>
+                <option value="Pending">⏳ Pending</option>
+              </select>
+            </div>
+            <div class="form-group" style="grid-column: 1/-1">
+              <label class="form-label">Deskripsi Pekerjaan</label>
+              <textarea
+                class="form-control"
+                id="f-deskripsi"
+                placeholder="Jelaskan pekerjaan yang dilakukan..."
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Kendala yang Dihadapi</label>
+              <textarea
+                class="form-control"
+                id="f-kendala"
+                placeholder="Kendala atau hambatan..."
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Solusi</label>
+              <textarea
+                class="form-control"
+                id="f-solusi"
+                placeholder="Solusi yang diterapkan..."
+              ></textarea>
+            </div>
+          </div>
+          <div style="display: flex; gap: 10px; margin-top: 8px">
+            <button class="btn btn-primary" onclick="saveReport()" id="saveBtn">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Laporan
+            </button>
+            <button class="btn btn-outline" onclick="clearForm()">
+              <i class="fa-solid fa-rotate"></i> Reset
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter + Table -->
+        <div class="chart-card">
+          <div class="section-header">
+            <div>
+              <div class="chart-title">Daftar Laporan</div>
+              <div class="chart-sub" id="tableSubtitle">
+                Menampilkan semua laporan
+              </div>
+            </div>
+            <div class="filter-bar">
+              <input
+                type="date"
+                class="form-control"
+                id="filterDate"
+                style="padding: 7px 12px; font-size: 13px; width: auto"
+                onchange="filterReports()"
+              />
+              <select
+                class="form-control"
+                id="filterStatus"
+                style="padding: 7px 12px; font-size: 13px; width: auto"
+                onchange="filterReports()"
+              >
+                <option value="">Semua Status</option>
+                <option value="Selesai">Selesai</option>
+                <option value="Proses">Proses</option>
+                <option value="Pending">Pending</option>
+              </select>
+              <button
+                class="btn btn-outline"
+                onclick="clearFilters()"
+                style="font-size: 12px; padding: 7px 12px"
+              >
+                <i class="fa-solid fa-filter-circle-xmark"></i> Reset Filter
+              </button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama</th>
+                  <th>Tanggal</th>
+                  <th>Divisi</th>
+                  <th>Deskripsi</th>
+                  <th>Kendala</th>
+                  <th>Solusi</th>
+                  <th>Status</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="reportTableBody">
+                <tr>
+                  <td colspan="9">
+                    <div class="empty-state">
+                      <i class="fa-solid fa-inbox"></i>
+                      <p>Belum ada laporan. Tambahkan laporan baru di atas.</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEKLY PAGE -->
+      <div class="page" id="page-weekly">
+        <div class="page-header">
+          <div class="breadcrumb">
+            <span>WorkPulse</span><span class="sep">/</span
+            ><span style="color: var(--text)">Report Mingguan</span>
+          </div>
+          <h1>Report Mingguan</h1>
+          <p>Rekap laporan kerja 7 hari terakhir</p>
+        </div>
+
+        <div class="grid-4" style="margin-bottom: 20px">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Laporan</div>
+            <div class="stat-num" id="w-total" style="color: #38bdf8">0</div>
+            <div class="stat-change">7 hari terakhir</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Selesai</div>
+            <div class="stat-num" id="w-done" style="color: #34d399">0</div>
+            <div class="stat-change">Tugas diselesaikan</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Proses</div>
+            <div class="stat-num" id="w-process" style="color: #38bdf8">0</div>
+            <div class="stat-change">Sedang berjalan</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-label">Pending</div>
+            <div class="stat-num" id="w-pending" style="color: #fbbf24">0</div>
+            <div class="stat-change">Belum dikerjakan</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 20px">
+          <div class="chart-card">
+            <div class="chart-title">Grafik Produktivitas Mingguan</div>
+            <div class="chart-sub">Laporan per hari selama 7 hari terakhir</div>
+            <canvas id="weeklyDetailChart" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Resume Mingguan</div>
+            <div class="chart-sub">Ringkasan performa minggu ini</div>
+            <div id="weeklySummary">
+              <div class="resume-card">
+                <div class="resume-item">
+                  <span>Rata-rata laporan/hari</span>
+                  <span id="w-avg" style="font-weight: 700; color: #818cf8"
+                    >0</span
+                  >
+                </div>
+                <div class="resume-item">
+                  <span>Tingkat penyelesaian</span>
+                  <span id="w-rate" style="font-weight: 700; color: #34d399"
+                    >0%</span
+                  >
+                </div>
+                <div class="resume-item">
+                  <span>Divisi paling aktif</span>
+                  <span id="w-div" style="font-weight: 700; color: #38bdf8"
+                    >-</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title" style="margin-bottom: 16px">
+            Daftar Pekerjaan Minggu Ini
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama</th>
+                  <th>Tanggal</th>
+                  <th>Divisi</th>
+                  <th>Deskripsi</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="weeklyTableBody">
+                <tr>
+                  <td colspan="6">
+                    <div class="empty-state">
+                      <i class="fa-solid fa-inbox"></i>
+                      <p>Belum ada data mingguan</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- MONTHLY PAGE -->
+      <div class="page" id="page-monthly">
+        <div class="page-header">
+          <div class="breadcrumb">
+            <span>WorkPulse</span><span class="sep">/</span
+            ><span style="color: var(--text)">Report Bulanan</span>
+          </div>
+          <h1>Report Bulanan</h1>
+          <p>Rekap laporan kerja bulan ini</p>
+        </div>
+
+        <div class="grid-4" style="margin-bottom: 20px">
+          <div class="stat-card blue">
+            <div class="stat-label">Total Laporan</div>
+            <div class="stat-num" id="m-total" style="color: #38bdf8">0</div>
+            <div class="stat-change">Bulan ini</div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-label">Selesai</div>
+            <div class="stat-num" id="m-done" style="color: #34d399">0</div>
+          </div>
+          <div class="stat-card blue">
+            <div class="stat-label">Proses</div>
+            <div class="stat-num" id="m-process" style="color: #38bdf8">0</div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-label">Pending</div>
+            <div class="stat-num" id="m-pending" style="color: #fbbf24">0</div>
+          </div>
+        </div>
+
+        <div class="grid-2" style="margin-bottom: 20px">
+          <div class="chart-card">
+            <div class="chart-title">Grafik Performa Bulanan</div>
+            <div class="chart-sub">Tren laporan per minggu dalam bulan ini</div>
+            <canvas id="monthlyChart" height="200"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Statistik Selesai vs Pending</div>
+            <div class="chart-sub">Perbandingan status pekerjaan bulan ini</div>
+            <canvas id="monthlyStatusChart" height="200"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom: 20px">
+          <div class="chart-title" style="margin-bottom: 8px">
+            Resume Bulanan
+          </div>
+          <div class="chart-sub" style="margin-bottom: 16px">
+            Ringkasan performa bulan ini
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: repeat(3, 1fr);
+              gap: 12px;
+            "
+            id="monthlyResume"
+          >
+            <div class="resume-card" style="text-align: center">
+              <div
+                style="color: var(--muted); font-size: 12px; margin-bottom: 6px"
+              >
+                Rata-rata/Hari
+              </div>
+              <div
+                id="m-avg"
+                style="
+                  font-size: 28px;
+                  font-weight: 800;
+                  color: #818cf8;
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                "
+              >
+                0
+              </div>
+            </div>
+            <div class="resume-card" style="text-align: center">
+              <div
+                style="color: var(--muted); font-size: 12px; margin-bottom: 6px"
+              >
+                Tingkat Selesai
+              </div>
+              <div
+                id="m-rate"
+                style="
+                  font-size: 28px;
+                  font-weight: 800;
+                  color: #34d399;
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                "
+              >
+                0%
+              </div>
+            </div>
+            <div class="resume-card" style="text-align: center">
+              <div
+                style="color: var(--muted); font-size: 12px; margin-bottom: 6px"
+              >
+                Divisi Terbanyak
+              </div>
+              <div
+                id="m-div"
+                style="font-size: 22px; font-weight: 800; color: #38bdf8"
+              >
+                -
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-title" style="margin-bottom: 16px">
+            Semua Laporan Bulan Ini
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama</th>
+                  <th>Tanggal</th>
+                  <th>Divisi</th>
+                  <th>Deskripsi</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="monthlyTableBody">
+                <tr>
+                  <td colspan="6">
+                    <div class="empty-state">
+                      <i class="fa-solid fa-inbox"></i>
+                      <p>Belum ada data bulanan</p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- /main -->
+
+    <!-- Export Modal -->
+    <div class="modal-overlay" id="exportModal">
+      <div class="modal">
+        <div class="modal-header">
+          <div>
+            <div style="font-weight: 800; font-size: 16px">Export Laporan</div>
+            <div style="font-size: 12px; color: var(--muted)">
+              Pilih format dan rentang waktu export
+            </div>
+          </div>
+          <button class="btn-icon" onclick="closeExportModal()">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Rentang Waktu</label>
+            <select class="form-control" id="exportRange">
+              <option value="all">Semua Laporan</option>
+              <option value="today">Hari Ini</option>
+              <option value="week">Minggu Ini</option>
+              <option value="month">Bulan Ini</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Filter Status (opsional)</label>
+            <select class="form-control" id="exportStatus">
+              <option value="">Semua Status</option>
+              <option value="Selesai">Selesai</option>
+              <option value="Proses">Proses</option>
+              <option value="Pending">Pending</option>
+            </select>
+          </div>
+          <div
+            style="
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 12px;
+              margin-top: 8px;
+            "
+          >
+            <button
+              class="btn btn-success"
+              onclick="exportExcel()"
+              style="justify-content: center; padding: 14px"
+            >
+              <i class="fa-solid fa-file-excel"></i> Export ke Excel
+            </button>
+            <button
+              class="btn btn-danger"
+              onclick="exportPDF()"
+              style="justify-content: center; padding: 14px"
+            >
+              <i class="fa-solid fa-file-pdf"></i> Export ke PDF
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <style>
+      @media (max-width: 640px) {
+        .form-grid {
+          grid-template-columns: 1fr !important;
+        }
+        #monthlyResume {
+          grid-template-columns: 1fr !important;
+        }
+      }
+    </style>
+
+    <script>
+      // ========== STATE ==========
+      let reports = JSON.parse(localStorage.getItem("wp_reports") || "[]");
+      let editingId = null;
+      let weeklyChartInst,
+        statusChartInst,
+        weeklyDetailChartInst,
+        monthlyChartInst,
+        monthlyStatusChartInst;
+
+      // ========== INIT ==========
+      document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("f-tanggal").value = todayStr();
+        document.getElementById("dateChip").textContent =
+          new Date().toLocaleDateString("id-ID", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          });
+        renderDashboard();
+        renderReportTable();
+      });
+
+      function todayStr() {
+        return new Date().toISOString().split("T")[0];
+      }
+
+      function saveData() {
+        localStorage.setItem("wp_reports", JSON.stringify(reports));
+      }
+
+      // ========== NAVIGATION ==========
+      function navigate(page) {
+        document
+          .querySelectorAll(".page")
+          .forEach((p) => p.classList.remove("active"));
+        document
+          .querySelectorAll(".nav-item")
+          .forEach((n) => n.classList.remove("active"));
+        document.getElementById("page-" + page).classList.add("active");
+        const navItems = document.querySelectorAll(".nav-item");
+        const map = { dashboard: 0, daily: 1, weekly: 2, monthly: 3 };
+        navItems[map[page]]?.classList.add("active");
+        closeSidebar();
+        if (page === "dashboard") renderDashboard();
+        if (page === "weekly") renderWeekly();
+        if (page === "monthly") renderMonthly();
+      }
+
+      function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("open");
+        document.getElementById("overlay").classList.toggle("active");
+      }
+      function closeSidebar() {
+        document.getElementById("sidebar").classList.remove("open");
+        document.getElementById("overlay").classList.remove("active");
+      }
+
+      // ========== TOAST ==========
+      function showToast(msg, type = "success") {
+        const icons = {
+          success: "fa-circle-check",
+          error: "fa-circle-xmark",
+          info: "fa-circle-info",
+        };
+        const colors = {
+          success: "#34d399",
+          error: "#f87171",
+          info: "#38bdf8",
+        };
+        const t = document.createElement("div");
+        t.className = `toast ${type}`;
+        t.innerHTML = `<i class="fa-solid ${icons[type]}" style="color:${colors[type]}"></i> ${msg}`;
+        document.getElementById("toast-container").appendChild(t);
+        setTimeout(() => t.remove(), 3500);
+      }
+
+      // ========== SAVE REPORT ==========
+      function saveReport() {
+        const nama = document.getElementById("f-nama").value.trim();
+        const tanggal = document.getElementById("f-tanggal").value;
+        const divisi = document.getElementById("f-divisi").value.trim();
+        const deskripsi = document.getElementById("f-deskripsi").value.trim();
+        const kendala = document.getElementById("f-kendala").value.trim();
+        const solusi = document.getElementById("f-solusi").value.trim();
+        const status = document.getElementById("f-status").value;
+
+        if (!nama || !tanggal || !divisi || !deskripsi) {
+          showToast(
+            "Mohon isi semua field wajib (Nama, Tanggal, Divisi, Deskripsi)",
+            "error",
+          );
+          return;
+        }
+
+        const report = {
+          id: editingId || Date.now(),
+          nama,
+          tanggal,
+          divisi,
+          deskripsi,
+          kendala,
+          solusi,
+          status,
+          createdAt: new Date().toISOString(),
+        };
+
+        if (editingId) {
+          const idx = reports.findIndex((r) => r.id === editingId);
+          if (idx !== -1) reports[idx] = report;
+          showToast("Laporan berhasil diperbarui!", "success");
+          cancelEdit();
+        } else {
+          reports.unshift(report);
+          showToast("Laporan berhasil disimpan!", "success");
+        }
+
+        saveData();
+        clearForm();
+        renderReportTable();
+        renderDashboard();
+        document.getElementById("daily-badge").textContent =
+          getTodayReports().length;
+      }
+
+      function clearForm() {
+        ["f-nama", "f-divisi", "f-deskripsi", "f-kendala", "f-solusi"].forEach(
+          (id) => (document.getElementById(id).value = ""),
+        );
+        document.getElementById("f-tanggal").value = todayStr();
+        document.getElementById("f-status").value = "Selesai";
+      }
+
+      function cancelEdit() {
+        editingId = null;
+        document.getElementById("formTitle").textContent =
+          "➕ Tambah Laporan Baru";
+        document.getElementById("saveBtn").innerHTML =
+          '<i class="fa-solid fa-floppy-disk"></i> Simpan Laporan';
+        document.getElementById("cancelEditBtn").style.display = "none";
+        clearForm();
+      }
+
+      function editReport(id) {
+        const r = reports.find((x) => x.id === id);
+        if (!r) return;
+        editingId = id;
+        document.getElementById("f-nama").value = r.nama;
+        document.getElementById("f-tanggal").value = r.tanggal;
+        document.getElementById("f-divisi").value = r.divisi;
+        document.getElementById("f-deskripsi").value = r.deskripsi;
+        document.getElementById("f-kendala").value = r.kendala;
+        document.getElementById("f-solusi").value = r.solusi;
+        document.getElementById("f-status").value = r.status;
+        document.getElementById("formTitle").textContent = "✏️ Edit Laporan";
+        document.getElementById("saveBtn").innerHTML =
+          '<i class="fa-solid fa-pen"></i> Update Laporan';
+        document.getElementById("cancelEditBtn").style.display = "flex";
+        document
+          .getElementById("addFormSection")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      function deleteReport(id) {
+        if (!confirm("Apakah Anda yakin ingin menghapus laporan ini?")) return;
+        reports = reports.filter((r) => r.id !== id);
+        saveData();
+        renderReportTable();
+        renderDashboard();
+        document.getElementById("daily-badge").textContent =
+          getTodayReports().length;
+        showToast("Laporan berhasil dihapus.", "info");
+      }
+
+      // ========== RENDER TABLE ==========
+      function renderReportTable(filtered = null) {
+        const data = filtered !== null ? filtered : reports;
+        const tbody = document.getElementById("reportTableBody");
+        document.getElementById("tableSubtitle").textContent =
+          `Menampilkan ${data.length} laporan`;
+        if (!data.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="9"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada laporan</p></div></td></tr>';
+          return;
+        }
+        tbody.innerHTML = data
+          .map(
+            (r, i) => `
+    <tr>
+      <td style="color:var(--muted);font-family:'JetBrains Mono',monospace;font-size:12px">${i + 1}</td>
+      <td style="font-weight:600">${r.nama}</td>
+      <td style="color:var(--muted);font-size:12px;white-space:nowrap">${formatDate(r.tanggal)}</td>
+      <td><span class="chip">${r.divisi}</span></td>
+      <td style="max-width:200px;font-size:12px;color:var(--muted)">${truncate(r.deskripsi, 60)}</td>
+      <td style="max-width:150px;font-size:12px;color:#f87171">${truncate(r.kendala || "-", 40)}</td>
+      <td style="max-width:150px;font-size:12px;color:#34d399">${truncate(r.solusi || "-", 40)}</td>
+      <td>${statusBadge(r.status)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-warning" style="font-size:11px;padding:5px 10px" onclick="editReport(${r.id})">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          <button class="btn btn-danger" style="font-size:11px;padding:5px 10px" onclick="deleteReport(${r.id})">
+            <i class="fa-solid fa-trash"></i>
+          </button>
+        </div>
+      </td>
+    </tr>
+  `,
+          )
+          .join("");
+      }
+
+      function statusBadge(s) {
+        const cls =
+          s === "Selesai" ? "selesai" : s === "Proses" ? "proses" : "pending";
+        const icon =
+          s === "Selesai"
+            ? "fa-circle-check"
+            : s === "Proses"
+              ? "fa-spinner"
+              : "fa-clock";
+        return `<span class="badge ${cls}"><i class="fa-solid ${icon}"></i> ${s}</span>`;
+      }
+
+      function truncate(str, n) {
+        if (!str) return "-";
+        return str.length > n ? str.substr(0, n) + "..." : str;
+      }
+
+      function formatDate(d) {
+        if (!d) return "-";
+        const [y, m, day] = d.split("-");
+        const months = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "Mei",
+          "Jun",
+          "Jul",
+          "Agu",
+          "Sep",
+          "Okt",
+          "Nov",
+          "Des",
+        ];
+        return `${day} ${months[parseInt(m) - 1]} ${y}`;
+      }
+
+      // ========== FILTERS ==========
+      function filterReports() {
+        const dateVal = document.getElementById("filterDate").value;
+        const statusVal = document.getElementById("filterStatus").value;
+        let filtered = [...reports];
+        if (dateVal) filtered = filtered.filter((r) => r.tanggal === dateVal);
+        if (statusVal)
+          filtered = filtered.filter((r) => r.status === statusVal);
+        renderReportTable(filtered);
+      }
+
+      function clearFilters() {
+        document.getElementById("filterDate").value = "";
+        document.getElementById("filterStatus").value = "";
+        renderReportTable();
+      }
+
+      function handleSearch() {
+        const q = document.getElementById("globalSearch").value.toLowerCase();
+        if (!q) {
+          renderReportTable();
+          return;
+        }
+        const filtered = reports.filter(
+          (r) =>
+            r.nama.toLowerCase().includes(q) ||
+            r.divisi.toLowerCase().includes(q) ||
+            r.deskripsi.toLowerCase().includes(q),
+        );
+        renderReportTable(filtered);
+      }
+
+      // ========== DASHBOARD ==========
+      function getTodayReports() {
+        const today = todayStr();
+        return reports.filter((r) => r.tanggal === today);
+      }
+      function getWeekReports() {
+        const now = new Date();
+        const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+        return reports.filter((r) => new Date(r.tanggal) >= weekAgo);
+      }
+      function getMonthReports() {
+        const now = new Date();
+        return reports.filter((r) => {
+          const d = new Date(r.tanggal);
+          return (
+            d.getMonth() === now.getMonth() &&
+            d.getFullYear() === now.getFullYear()
+          );
+        });
+      }
+
+      function renderDashboard() {
+        const today = getTodayReports();
+        const week = getWeekReports();
+        const month = getMonthReports();
+        const allDone = reports.filter((r) => r.status === "Selesai");
+
+        document.getElementById("stat-today").textContent = today.length;
+        document.getElementById("stat-week").textContent = week.length;
+        document.getElementById("stat-month").textContent = month.length;
+        document.getElementById("stat-done").textContent = allDone.length;
+        document.getElementById("daily-badge").textContent = today.length;
+
+        // Daily summary
+        const todayDone = today.filter((r) => r.status === "Selesai").length;
+        const todayProcess = today.filter((r) => r.status === "Proses").length;
+        const todayPending = today.filter((r) => r.status === "Pending").length;
+        document.getElementById("rs-total").textContent = today.length;
+        document.getElementById("rs-done").textContent = todayDone;
+        document.getElementById("rs-process").textContent = todayProcess;
+        document.getElementById("rs-pending").textContent = todayPending;
+        const pct = today.length
+          ? Math.round((todayDone / today.length) * 100)
+          : 0;
+        document.getElementById("rs-pct").textContent = pct + "%";
+        document.getElementById("rs-bar").style.width = pct + "%";
+        const kendalaList = today
+          .filter((r) => r.kendala)
+          .map((r) => r.kendala);
+        document.getElementById("rs-kendala").textContent = kendalaList.length
+          ? kendalaList[0].substring(0, 50)
+          : "-";
+
+        // Recent
+        const recentEl = document.getElementById("recentReports");
+        if (!reports.length) {
+          recentEl.innerHTML =
+            '<div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada laporan</p></div>';
+        } else {
+          recentEl.innerHTML = reports
+            .slice(0, 5)
+            .map(
+              (r) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid rgba(51,65,85,0.4)">
+        <div style="width:36px;height:36px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">
+          ${r.nama.charAt(0).toUpperCase()}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nama}</div>
+          <div style="font-size:11px;color:var(--muted)">${r.divisi} · ${formatDate(r.tanggal)}</div>
+        </div>
+        ${statusBadge(r.status)}
+      </div>
+    `,
+            )
+            .join("");
+        }
+
+        renderWeeklyChart(week);
+        renderStatusChart();
+      }
+
+      function renderWeeklyChart(weekData) {
+        const labels = [];
+        const counts = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const str = d.toISOString().split("T")[0];
+          labels.push(d.toLocaleDateString("id-ID", { weekday: "short" }));
+          counts.push(weekData.filter((r) => r.tanggal === str).length);
+        }
+
+        if (weeklyChartInst) weeklyChartInst.destroy();
+        weeklyChartInst = new Chart(document.getElementById("weeklyChart"), {
+          type: "bar",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Laporan",
+                data: counts,
+                backgroundColor: "rgba(56,189,248,0.3)",
+                borderColor: "#38bdf8",
+                borderWidth: 2,
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: "rgba(51,65,85,0.4)" },
+                ticks: { color: "#94a3b8", font: { size: 11 } },
+              },
+              y: {
+                grid: { color: "rgba(51,65,85,0.4)" },
+                ticks: { color: "#94a3b8", font: { size: 11 }, stepSize: 1 },
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      function renderStatusChart() {
+        const done = reports.filter((r) => r.status === "Selesai").length;
+        const proc = reports.filter((r) => r.status === "Proses").length;
+        const pend = reports.filter((r) => r.status === "Pending").length;
+
+        if (statusChartInst) statusChartInst.destroy();
+        statusChartInst = new Chart(document.getElementById("statusChart"), {
+          type: "doughnut",
+          data: {
+            labels: ["Selesai", "Proses", "Pending"],
+            datasets: [
+              {
+                data: [done || 0, proc || 0, pend || 0],
+                backgroundColor: [
+                  "rgba(52,211,153,0.8)",
+                  "rgba(56,189,248,0.8)",
+                  "rgba(251,191,36,0.8)",
+                ],
+                borderColor: ["#34d399", "#38bdf8", "#fbbf24"],
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: {
+                position: "bottom",
+                labels: { color: "#94a3b8", font: { size: 11 }, padding: 16 },
+              },
+            },
+            cutout: "65%",
+          },
+        });
+      }
+
+      // ========== WEEKLY ==========
+      function renderWeekly() {
+        const week = getWeekReports();
+        document.getElementById("w-total").textContent = week.length;
+        document.getElementById("w-done").textContent = week.filter(
+          (r) => r.status === "Selesai",
+        ).length;
+        document.getElementById("w-process").textContent = week.filter(
+          (r) => r.status === "Proses",
+        ).length;
+        document.getElementById("w-pending").textContent = week.filter(
+          (r) => r.status === "Pending",
+        ).length;
+
+        const avg = week.length ? (week.length / 7).toFixed(1) : 0;
+        const rate = week.length
+          ? Math.round(
+              (week.filter((r) => r.status === "Selesai").length /
+                week.length) *
+                100,
+            )
+          : 0;
+        const divCounts = {};
+        week.forEach(
+          (r) => (divCounts[r.divisi] = (divCounts[r.divisi] || 0) + 1),
+        );
+        const topDiv =
+          Object.entries(divCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+
+        document.getElementById("w-avg").textContent = avg;
+        document.getElementById("w-rate").textContent = rate + "%";
+        document.getElementById("w-div").textContent = topDiv;
+
+        const tbody = document.getElementById("weeklyTableBody");
+        if (!week.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="6"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada data minggu ini</p></div></td></tr>';
+        } else {
+          tbody.innerHTML = week
+            .map(
+              (r, i) => `
+      <tr><td style="color:var(--muted);font-size:12px">${i + 1}</td><td style="font-weight:600">${r.nama}</td><td style="font-size:12px;color:var(--muted)">${formatDate(r.tanggal)}</td><td><span class="chip">${r.divisi}</span></td><td style="font-size:12px;color:var(--muted)">${truncate(r.deskripsi, 80)}</td><td>${statusBadge(r.status)}</td></tr>
+    `,
+            )
+            .join("");
+        }
+
+        // Chart
+        const labels = [];
+        const counts = [];
+        for (let i = 6; i >= 0; i--) {
+          const d = new Date();
+          d.setDate(d.getDate() - i);
+          const str = d.toISOString().split("T")[0];
+          labels.push(
+            d.toLocaleDateString("id-ID", { weekday: "short", day: "numeric" }),
+          );
+          counts.push(week.filter((r) => r.tanggal === str).length);
+        }
+        if (weeklyDetailChartInst) weeklyDetailChartInst.destroy();
+        weeklyDetailChartInst = new Chart(
+          document.getElementById("weeklyDetailChart"),
+          {
+            type: "line",
+            data: {
+              labels,
+              datasets: [
+                {
+                  label: "Laporan",
+                  data: counts,
+                  borderColor: "#818cf8",
+                  backgroundColor: "rgba(129,140,248,0.15)",
+                  fill: true,
+                  tension: 0.4,
+                  pointBackgroundColor: "#818cf8",
+                  pointRadius: 4,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: {
+                  grid: { color: "rgba(51,65,85,0.4)" },
+                  ticks: { color: "#94a3b8", font: { size: 10 } },
+                },
+                y: {
+                  grid: { color: "rgba(51,65,85,0.4)" },
+                  ticks: { color: "#94a3b8", font: { size: 10 }, stepSize: 1 },
+                  beginAtZero: true,
+                },
+              },
+            },
+          },
+        );
+      }
+
+      // ========== MONTHLY ==========
+      function renderMonthly() {
+        const month = getMonthReports();
+        const done = month.filter((r) => r.status === "Selesai").length;
+        const proc = month.filter((r) => r.status === "Proses").length;
+        const pend = month.filter((r) => r.status === "Pending").length;
+
+        document.getElementById("m-total").textContent = month.length;
+        document.getElementById("m-done").textContent = done;
+        document.getElementById("m-process").textContent = proc;
+        document.getElementById("m-pending").textContent = pend;
+
+        const now = new Date();
+        const daysInMonth = new Date(
+          now.getFullYear(),
+          now.getMonth() + 1,
+          0,
+        ).getDate();
+        const avg = month.length ? (month.length / daysInMonth).toFixed(1) : 0;
+        const rate = month.length ? Math.round((done / month.length) * 100) : 0;
+        const divCounts = {};
+        month.forEach(
+          (r) => (divCounts[r.divisi] = (divCounts[r.divisi] || 0) + 1),
+        );
+        const topDiv =
+          Object.entries(divCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "-";
+
+        document.getElementById("m-avg").textContent = avg;
+        document.getElementById("m-rate").textContent = rate + "%";
+        document.getElementById("m-div").textContent = topDiv;
+
+        const tbody = document.getElementById("monthlyTableBody");
+        if (!month.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="6"><div class="empty-state"><i class="fa-solid fa-inbox"></i><p>Belum ada data bulan ini</p></div></td></tr>';
+        } else {
+          tbody.innerHTML = month
+            .map(
+              (r, i) => `
+      <tr><td style="color:var(--muted);font-size:12px">${i + 1}</td><td style="font-weight:600">${r.nama}</td><td style="font-size:12px;color:var(--muted)">${formatDate(r.tanggal)}</td><td><span class="chip">${r.divisi}</span></td><td style="font-size:12px;color:var(--muted)">${truncate(r.deskripsi, 80)}</td><td>${statusBadge(r.status)}</td></tr>
+    `,
+            )
+            .join("");
+        }
+
+        // Weekly breakdown chart
+        const weekLabels = [
+          "Minggu 1",
+          "Minggu 2",
+          "Minggu 3",
+          "Minggu 4",
+          "Minggu 5",
+        ];
+        const weekCounts = [0, 0, 0, 0, 0];
+        month.forEach((r) => {
+          const day = parseInt(r.tanggal.split("-")[2]);
+          const wi = Math.min(Math.floor((day - 1) / 7), 4);
+          weekCounts[wi]++;
+        });
+        if (monthlyChartInst) monthlyChartInst.destroy();
+        monthlyChartInst = new Chart(document.getElementById("monthlyChart"), {
+          type: "bar",
+          data: {
+            labels: weekLabels,
+            datasets: [
+              {
+                label: "Laporan",
+                data: weekCounts,
+                backgroundColor: "rgba(56,189,248,0.3)",
+                borderColor: "#38bdf8",
+                borderWidth: 2,
+                borderRadius: 6,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: {
+                grid: { color: "rgba(51,65,85,0.4)" },
+                ticks: { color: "#94a3b8", font: { size: 11 } },
+              },
+              y: {
+                grid: { color: "rgba(51,65,85,0.4)" },
+                ticks: { color: "#94a3b8", font: { size: 11 }, stepSize: 1 },
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+
+        if (monthlyStatusChartInst) monthlyStatusChartInst.destroy();
+        monthlyStatusChartInst = new Chart(
+          document.getElementById("monthlyStatusChart"),
+          {
+            type: "doughnut",
+            data: {
+              labels: ["Selesai", "Proses", "Pending"],
+              datasets: [
+                {
+                  data: [done || 0, proc || 0, pend || 0],
+                  backgroundColor: [
+                    "rgba(52,211,153,0.8)",
+                    "rgba(56,189,248,0.8)",
+                    "rgba(251,191,36,0.8)",
+                  ],
+                  borderColor: ["#34d399", "#38bdf8", "#fbbf24"],
+                  borderWidth: 2,
+                },
+              ],
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: {
+                  position: "bottom",
+                  labels: { color: "#94a3b8", font: { size: 11 }, padding: 16 },
+                },
+              },
+              cutout: "60%",
+            },
+          },
+        );
+      }
+
+      // ========== EXPORT ==========
+      function openExportModal() {
+        document.getElementById("exportModal").classList.add("active");
+      }
+      function closeExportModal() {
+        document.getElementById("exportModal").classList.remove("active");
+      }
+
+      function getExportData() {
+        const range = document.getElementById("exportRange").value;
+        const status = document.getElementById("exportStatus").value;
+        let data = [...reports];
+        if (range === "today") data = getTodayReports();
+        else if (range === "week") data = getWeekReports();
+        else if (range === "month") data = getMonthReports();
+        if (status) data = data.filter((r) => r.status === status);
+        return data;
+      }
+
+      function exportExcel() {
+        const data = getExportData();
+        if (!data.length) {
+          showToast("Tidak ada data untuk diekspor", "error");
+          return;
+        }
+        const wsData = [
+          [
+            "No",
+            "Nama",
+            "Tanggal",
+            "Divisi",
+            "Deskripsi Pekerjaan",
+            "Kendala",
+            "Solusi",
+            "Status",
+          ],
+          ...data.map((r, i) => [
+            i + 1,
+            r.nama,
+            r.tanggal,
+            r.divisi,
+            r.deskripsi,
+            r.kendala || "",
+            r.solusi || "",
+            r.status,
+          ]),
+        ];
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws["!cols"] = [
+          { wch: 5 },
+          { wch: 20 },
+          { wch: 12 },
+          { wch: 15 },
+          { wch: 40 },
+          { wch: 30 },
+          { wch: 30 },
+          { wch: 10 },
+        ];
+        XLSX.utils.book_append_sheet(wb, ws, "Laporan Kerja");
+        XLSX.writeFile(wb, `laporan-kerja-${todayStr()}.xlsx`);
+        showToast("Export Excel berhasil!", "success");
+        closeExportModal();
+      }
+
+      function exportPDF() {
+        const data = getExportData();
+        if (!data.length) {
+          showToast("Tidak ada data untuk diekspor", "error");
+          return;
+        }
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+          orientation: "landscape",
+          unit: "mm",
+          format: "a4",
+        });
+        const pageW = 297,
+          pageH = 210,
+          margin = 10,
+          innerW = pageW - margin * 2;
+        const fontSize = 7.5,
+          lineH = 4.5;
+
+        // Column definitions: [label, x-start, max-width]
+        const cols = [
+          { label: "No", x: margin + 2, w: 8 },
+          { label: "Nama", x: margin + 12, w: 28 },
+          { label: "Tanggal", x: margin + 42, w: 22 },
+          { label: "Divisi", x: margin + 66, w: 26 },
+          { label: "Deskripsi Pekerjaan", x: margin + 94, w: 62 },
+          { label: "Kendala", x: margin + 158, w: 55 },
+          { label: "Solusi", x: margin + 215, w: 50 },
+          { label: "Status", x: margin + 267, w: 20 },
+        ];
+
+        function drawPageBg() {
+          doc.setFillColor(15, 23, 42);
+          doc.rect(0, 0, pageW, pageH, "F");
+        }
+
+        function drawHeader() {
+          drawPageBg();
+          // Title bar
+          doc.setFillColor(14, 165, 233);
+          doc.rect(0, 0, pageW, 12, "F");
+          doc.setFontSize(11);
+          doc.setTextColor(255, 255, 255);
+          doc.setFont("helvetica", "bold");
+          doc.text("WorkPulse — Laporan Kerja", margin, 8);
+
+          // Meta info
+          doc.setFontSize(8.5);
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(148, 163, 184);
+          doc.text(
+            `Digenerate: ${new Date().toLocaleDateString("id-ID", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}`,
+            margin,
+            18,
+          );
+          doc.text(`Total Data: ${data.length} laporan`, margin, 24);
+
+          // Stat chips
+          const done = data.filter((r) => r.status === "Selesai").length;
+          const proc = data.filter((r) => r.status === "Proses").length;
+          const pend = data.filter((r) => r.status === "Pending").length;
+          const chips = [
+            { label: `Selesai: ${done}`, bg: [52, 211, 153] },
+            { label: `Proses: ${proc}`, bg: [56, 189, 248] },
+            { label: `Pending: ${pend}`, bg: [251, 191, 36] },
+          ];
+          let cx2 = pageW - margin - 10;
+          chips.reverse().forEach((ch) => {
+            const tw = doc.getTextWidth(ch.label) + 6;
+            cx2 -= tw;
+            doc.setFillColor(...ch.bg);
+            doc.roundedRect(cx2, 15, tw, 6, 1.5, 1.5, "F");
+            doc.setTextColor(15, 23, 42);
+            doc.setFontSize(7);
+            doc.setFont("helvetica", "bold");
+            doc.text(ch.label, cx2 + 3, 19.5);
+            cx2 -= 4;
+          });
+        }
+
+        function drawTableHeader(y) {
+          doc.setFillColor(30, 41, 59);
+          doc.rect(margin, y, innerW, 8, "F");
+          // header border bottom
+          doc.setDrawColor(56, 189, 248);
+          doc.setLineWidth(0.3);
+          doc.line(margin, y + 8, margin + innerW, y + 8);
+          doc.setFontSize(7);
+          doc.setFont("helvetica", "bold");
+          doc.setTextColor(148, 163, 184);
+          cols.forEach((c) => doc.text(c.label, c.x, y + 5.5));
+          return y + 8;
+        }
+
+        // --- Build wrapped rows first so we know row heights ---
+        const rows = data.map((r, idx) => {
+          doc.setFontSize(fontSize);
+          const cells = [
+            String(idx + 1),
+            r.nama || "",
+            r.tanggal || "",
+            r.divisi || "",
+            r.deskripsi || "",
+            r.kendala || "-",
+            r.solusi || "-",
+            r.status || "",
+          ];
+          const wrapped = cells.map((text, ci) =>
+            doc.splitTextToSize(String(text), cols[ci].w - 1),
+          );
+          const maxLines = Math.max(...wrapped.map((w) => w.length));
+          const rowH = Math.max(8, maxLines * lineH + 3);
+          return { r, idx, wrapped, maxLines, rowH };
+        });
+
+        // --- Render ---
+        drawHeader();
+        let y = 30;
+        y = drawTableHeader(y);
+
+        rows.forEach((row, ri) => {
+          // Page break check
+          if (y + row.rowH > pageH - margin) {
+            doc.addPage();
+            drawPageBg();
+            y = margin;
+            y = drawTableHeader(y);
+          }
+
+          // Alternating row background
+          if (ri % 2 === 0) {
+            doc.setFillColor(22, 33, 48);
+            doc.rect(margin, y, innerW, row.rowH, "F");
+          }
+
+          // Row separator
+          doc.setDrawColor(51, 65, 85);
+          doc.setLineWidth(0.15);
+          doc.line(margin, y + row.rowH, margin + innerW, y + row.rowH);
+
+          // Cell text
+          doc.setFontSize(fontSize);
+          doc.setFont("helvetica", "normal");
+          row.wrapped.forEach((lines, ci) => {
+            const col = cols[ci];
+            // Color Status column
+            if (ci === 7) {
+              const statusColors = {
+                Selesai: [52, 211, 153],
+                Proses: [56, 189, 248],
+                Pending: [251, 191, 36],
+              };
+              const sc = statusColors[row.r.status] || [148, 163, 184];
+              doc.setTextColor(...sc);
+              doc.setFont("helvetica", "bold");
+            } else if (ci === 0) {
+              doc.setTextColor(148, 163, 184);
+              doc.setFont("helvetica", "normal");
+            } else {
+              doc.setTextColor(220, 230, 245);
+              doc.setFont("helvetica", "normal");
+            }
+            lines.forEach((line, li) => {
+              doc.text(line, col.x, y + 5 + li * lineH);
+            });
+          });
+
+          y += row.rowH;
+        });
+
+        // Footer on last page
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(71, 85, 105);
+        doc.text(
+          `WorkPulse © ${new Date().getFullYear()} — Halaman ${doc.getNumberOfPages()}`,
+          margin,
+          pageH - 4,
+        );
+
+        doc.save(`laporan-kerja-${todayStr()}.pdf`);
+        showToast("Export PDF berhasil!", "success");
+        closeExportModal();
+      }
+    </script>
+  </body>
+</html>
